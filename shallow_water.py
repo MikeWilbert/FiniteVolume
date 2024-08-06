@@ -20,14 +20,13 @@ def init():
   
   b   += h_0
   # b   += - 0.4 * np.exp( - (x - 0.)**2 / 20. )
-  # b[x < 0.] += 1./20. * x[x<0.] 
+  b[x < 20.] += 1./20. * (x[x<20.] - 20.) 
   # b[x < 0.] += - 0.04 * ( 10 - np.abs(x[x<0.] - (-10.) ) )
-  b += - 0.8 * np.exp( - (x - 10.)**2 / 10. )
-  b += - 0.8 * np.exp( - (x - 0.)**2 / 10. )
-  b += - 0.8 * np.exp( - (x + 10.)**2 / 10. )
+  # b += - 0.8 * np.exp( - (x - 10.)**2 / 10. )
+  # b += - 0.8 * np.exp( - (x - 0.)**2 / 10. )
+  # b += - 0.8 * np.exp( - (x + 10.)**2 / 10. )
   
-  eta += 1. * np.exp( - (x - 30.)**2 / 20. )
-  # eta += 0.01
+  eta += 1. * np.exp( - (x - 60.)**2 / 20. )
   
   H = b
   U += 0.
@@ -39,6 +38,7 @@ def init():
   Q[1,:] += -eta * np.sqrt(g*eta)
 
   boundary(Q)
+  dry(Q)
 
 def boundary(u):
 
@@ -72,7 +72,8 @@ def calc_dt():
   
   global Q, g, dx, cfl
   
-  c = np.amax( np.abs( Q[1,:] / ( Q[0:] + 1.e-12 ) ) + np.abs(np.sqrt( Q[0,:] * g ))  )
+  c = np.amax( np.abs( Q[1,:] / ( Q[0:] + 1.e-12 ) )  )
+  # c = np.amax( np.abs( Q[1,:] / ( Q[0:] + 1.e-12 ) ) + np.abs(np.sqrt( Q[0,:] * g ))  )
   
   # return ( cfl * dx / 10. )
   return ( cfl * dx / c )
@@ -88,6 +89,9 @@ def flux(u):
   
   return f
 
+def dry(u):
+  u[:,:] = np.where( u[0,:] < 1.e-6, 0., u[:,:] )
+
 def step():
   
   global Q, dt, t, g, dx, b
@@ -96,13 +100,16 @@ def step():
   
   # LxF
   # Q[:,2:-2] = 0.5 * ( Q[:,3:-1] + Q[:,1:-3] ) - dt * ( flux( Q[:,3:-1] ) - flux( Q[:,1:-3] ) )
+  # Q[:,Ng:-Ng] = np.where( Q[0,Ng:-Ng] < 0.00001, 0., Q[:,Ng:-Ng] )
   
   # S = + ( b[3:-1] - b[1:-3]) / (2.*dx) * g * Q[0,2:-2]
   
   # Q[1,2:-2] += dt * S 
+  # Q[:,Ng:-Ng] = np.where( Q[0,Ng:-Ng] < 0.00001, 0., Q[:,Ng:-Ng] )
   
   # Rusanov  
   
+  dry(Q)
   Q_l = Q[:,:-1]
   Q_r = Q[:,1:]
   
@@ -111,30 +118,32 @@ def step():
               np.abs( Q_r[1,:] / ( Q_r[0:] + 1.e-12 ) ) + np.abs(np.sqrt( Q_r[0,:] * g ))
               )
   
+  # F = 0.5 * ( flux( Q_r ) + flux( Q_l ) - dx/dt * ( Q_r - Q_l ) )
   F = 0.5 * ( flux( Q_r ) + flux( Q_l ) - a * ( Q_r - Q_l ) )
   F_L = F[:,1:-2]
   F_R = F[:,2:-1]
   
   Q[:,Ng:-Ng] += - dt * ( F_R - F_L ) / dx
+  dry(Q)
   
   S = + ( b[3:-1] - b[1:-3]) / (2.*dx) * g * Q[0,2:-2]
   
   Q[1,2:-2] += dt * S 
-  
+  dry(Q)
   
   boundary(Q)
   
   t += dt
 
 L_l = 20.
-L_r = 40
+L_r = 80
 b_start = 50.
 h_0 = 1.
 g = 9.81
 
 L = L_r + L_l
 N = 200
-cfl = 0.5
+cfl = 0.25
 
 Ng = 2
 
@@ -151,8 +160,9 @@ init()
 fig, ax1 = plt.subplots(1,1, figsize=(20, 4))
 ax1.set_xlim(-L_l, L_r)
 ax1.set_ylim(-1.5*h_0, h_0)
+ax1.axhline(0.,-L_l, L_r, c='k', alpha=0.1, ls='--')
 
-line_1, = ax1.plot(x, (Q[0,:]-h_0), c = 'k')
+# line_1, = ax1.plot(x, (Q[0,:]-h_0), c = 'k')
 fill_1 = ax1.fill_between(x, (Q[0,:]-b), -b, facecolor = 'xkcd:bright blue')
 fill_2 = ax1.fill_between(x, -b, - 1.5 * h_0, facecolor = 'xkcd:light mustard')
 
@@ -166,15 +176,15 @@ def update(i):
   title = "time = {:.2f}".format(t)
   fig.suptitle(title)
   
-  line_1.set_ydata( (Q[0,:]-b) )  
+  # line_1.set_ydata( (Q[0,:]-b) )  
 
   fill_1.remove()
   fill_2.remove()
   fill_1 = ax1.fill_between(x, (Q[0,:]-b), -b, facecolor = 'xkcd:bright blue')
   fill_2 = ax1.fill_between(x, -b, - 1.5 * h_0, facecolor = 'xkcd:light mustard')
 
-  # return [fill_1, fill_2]
-  return [line_1 , fill_1, fill_2]
+  return [fill_1, fill_2]
+  # return [line_1 , fill_1, fill_2]
 
 anim = animation.FuncAnimation( fig=fig, func=update, frames = 40, interval = 30 )
 
