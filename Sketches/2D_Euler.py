@@ -62,70 +62,67 @@ def init():
   uy = np.zeros_like(X)
   p  = np.zeros_like(X)
   
-  # KH
-  # n += 1.
-  # ux[ np.abs(Y) < 0.25 * L ] = 1.
-  # uy += 0.
-  # p  += 2.5
+  # 2D Riemann problem (Case 3 in https://doi.org/10.1137/S1064827502402120)
   
-  # Sod
-  n  += 1.
-  ux += 0.
-  uy += 0.
-  p  += 1.
+  # left lower
+  n [ ( X < 0.5*L ) & ( Y < 0.5*L ) ] += 0.138
+  ux[ ( X < 0.5*L ) & ( Y < 0.5*L ) ] += 1.206
+  uy[ ( X < 0.5*L ) & ( Y < 0.5*L ) ] += 1.206
+  p [ ( X < 0.5*L ) & ( Y < 0.5*L ) ] += 0.029
   
-  # n [X > 0.5 * L] = 0.125
-  # ux[X > 0.5 * L] = 0.
-  # uy[X > 0.5 * L] = 0.
-  # p [X > 0.5 * L] = 0.1
+  # left upper
+  n [ ( X < 0.5*L ) & ( Y >= 0.5*L ) ] += 0.5323
+  ux[ ( X < 0.5*L ) & ( Y >= 0.5*L ) ] += 1.206
+  uy[ ( X < 0.5*L ) & ( Y >= 0.5*L ) ] += 0.0
+  p [ ( X < 0.5*L ) & ( Y >= 0.5*L ) ] += 0.3
   
-  n [Y > 0.5 * L] = 0.125
-  ux[Y > 0.5 * L] = 0.
-  uy[Y > 0.5 * L] = 0.
-  p [Y > 0.5 * L] = 0.1
+  # right lower
+  n [ ( X >= 0.5*L ) & ( Y < 0.5*L ) ] += 0.5323
+  ux[ ( X >= 0.5*L ) & ( Y < 0.5*L ) ] += 0.0
+  uy[ ( X >= 0.5*L ) & ( Y < 0.5*L ) ] += 1.206
+  p [ ( X >= 0.5*L ) & ( Y < 0.5*L ) ] += 0.3
+  
+  # right upper
+  n [ ( X >= 0.5*L ) & ( Y >= 0.5*L ) ] += 1.5
+  ux[ ( X >= 0.5*L ) & ( Y >= 0.5*L ) ] += 0.0
+  uy[ ( X >= 0.5*L ) & ( Y >= 0.5*L ) ] += 0.0
+  p [ ( X >= 0.5*L ) & ( Y >= 0.5*L ) ] += 1.5
+  
+  # ux *= 0.
   
   Q = primititives2conserved(n,ux,uy,p)
   
   boundary(Q)
   
-def flux(A):
+def flux(n,ux,uy,p,E):
   
-  Fx = np.zeros_like( A )
-  Fy = np.zeros_like( A )
-  
-  n, ux, uy, p = conserved2primitives( A )
-  E = A[3,:]
+  Fx = np.zeros( (4, n.shape[0], n.shape[1] ) )
+  Fy = np.zeros( (4, n.shape[0], n.shape[1] ) )
   
   Fx[0,:,:] = ux * n
   Fx[1,:,:] = ux * n*ux + p
-  Fx[2,:,:] = ux * n*0.
+  Fx[2,:,:] = ux * n*uy
   Fx[3,:,:] = ux * (E + p)
   
   Fy[0,:,:] = uy * n
-  Fy[1,:,:] = uy * n*0.
+  Fy[1,:,:] = uy * n*ux
   Fy[2,:,:] = uy * n*uy + p 
   Fy[3,:,:] = uy * (E + p)
   
   return Fx, Fy
-  
-def step():
+
+def get_RHS(A):
   
   global Q
   global  iCC,  iRC,  iLC,  iCL,  iCR
   global iiCC, iiRC, iiLC, iiCL, iiCR
-  global t, dt, dx
+  global dt, dx
   
-  n, ux, uy, p = conserved2primitives( Q )
+  n, ux, uy, p = conserved2primitives( A )
   
-  Fx, Fy = flux(Q)
+  Fx, Fy = flux(n,ux,uy,p,Q[3,:,:])
   
-  # LxF
-  # ax_L = dx/dt
-  # ax_R = dx/dt
-  # ay_L = dx/dt
-  # ay_R = dx/dt
-  
-  # Rusanov
+  # Rusanov flux
   c = np.sqrt( gamma * p / n )
   ax = np.abs(ux) + c
   ay = np.abs(uy) + c
@@ -144,12 +141,44 @@ def step():
   Hy_R = 0.5 * ( Fy[iiCR] + Fy[iiCC] \
                  -  ( ay_R * ( Q[iiCR] - Q[iiCC] ) ) )
   
-  # RHS = - ( Hx_R - Hx_L ) / dx
-  RHS =                          - ( Hy_R - Hy_L ) / dx
-  # RHS = - ( Hx_R - Hx_L ) / dx - ( Hy_R - Hy_L ) / dx
-  Q[:,Ng:-Ng,Ng:-Ng] += dt * RHS
+  RHS = - ( Hx_R - Hx_L ) / dx - ( Hy_R - Hy_L ) / dx
+  
+  return RHS
 
+def get_dt():
+  
+  global Q
+  global cfl, dx, gamma
+  
+  n, ux, uy, p = conserved2primitives( Q )
+  c = np.sqrt( gamma * p / n)
+  
+  delta_t = cfl*dx / np.amax( np.maximum( np.abs(ux) + c,  np.abs(uy) + c ) )
+  
+  return delta_t
+  
+def step():
+  
+  global Q
+  global t, dt
+  
+  dt = get_dt()
+  
+  Q1 = np.zeros_like(Q)
+  
+  # Euler
+  RHS0 = get_RHS(Q)
+  Q[:,Ng:-Ng,Ng:-Ng] = Q[:,Ng:-Ng,Ng:-Ng] +  dt * RHS0
   boundary(Q)
+  
+  # Heun
+  # RHS0 = get_RHS(Q)
+  # Q1[:,Ng:-Ng,Ng:-Ng] = Q[:,Ng:-Ng,Ng:-Ng] +  dt * RHS0
+  # boundary(Q1)
+  
+  # RHS1 = get_RHS(Q1)
+  # Q [:,Ng:-Ng,Ng:-Ng] = Q[:,Ng:-Ng,Ng:-Ng] +  dt * 0.5 * ( RHS0 + RHS1 )
+  # boundary(Q)
 
   t += dt
 
@@ -157,8 +186,8 @@ def step():
 
 #parameters
 L = 1.
-N = 200
-cfl = 0.1
+N = 400
+cfl = 0.5
 Ng = 2
 
 dx = L/(N-1)
@@ -195,46 +224,46 @@ iiRC = np.ix_( i_fields, i_R, i_C )
 # main loop
 init()
 
-while(t < 0.2):
+while(t < 0.4):
   step()
+  print(t)
 
 ''' GRAPHICS '''
 
 fig, ax = plt.subplots(1,1, figsize=(10, 10))
-# line,  = ax.plot( x, Q[0,:,5], '-')
-line,  = ax.plot( x, Q[0,5,:], '-')
+n, ux, uy, p = conserved2primitives( Q )
+pcm = ax.pcolormesh( x[Ng:-Ng], x[Ng:-Ng], p[Ng:-Ng, Ng:-Ng], cmap='jet', vmin=0.0, vmax=1.71 )
+cnt = ax.contour(X[Ng:-Ng, Ng:-Ng],Y[Ng:-Ng, Ng:-Ng],n[Ng:-Ng, Ng:-Ng], 32, colors='k', vmin=0.16, vmax=1.71, linewidths=1.)
+fig.colorbar(pcm)
+ax.set_aspect('equal')
 title = "time = {:.2f} s".format(t)
 fig.suptitle(title, fontsize=16)
 ax.set_xlabel('X')
 ax.set_ylabel('Y')
-for val in [0.263, 0.500, 0.685, 0.850]:
-  ax.axvline(val, c='k', ls='--', zorder=0)
-ax.set_xlim(0., 1.0)
-ax.set_ylim(0., 1.1)
 
-# def update(i):
+def update(i):
   
-#   global Q
-#   global t, t_out
+  global Q
+  global t, t_out
+  global pcm, cnt
   
-#   dt_out = 0.05
+  dt_out = 0.01
   
-#   # while( t_out < dt_out ):
-#     # step()
-#     # t_out += dt
-#   # t_out -= dt_out
+  while( t_out < dt_out ):
+    step()
+    t_out += dt
+  t_out -= dt_out
   
-#   step()
+  n, ux, uy, p = conserved2primitives( Q )
   
-#   line.set_ydata( (Q[0,:]) ) 
+  pcm.set_array( p[Ng:-Ng, Ng:-Ng] ) 
+  for coll in cnt.collections:
+    coll.remove()
+  cnt = ax.contour(X[Ng:-Ng, Ng:-Ng],Y[Ng:-Ng, Ng:-Ng],n[Ng:-Ng, Ng:-Ng], 32, colors='k', vmin=0.16, vmax=1.71, linewidths=1.)
   
-#   title = "time = {:.2f} s".format(t)
-#   fig.suptitle(title, fontsize=16)
-  
-#   return line, 
+  title = "time = {:.2f} s".format(t)
+  fig.suptitle(title, fontsize=16)
 
 # anim = animation.FuncAnimation( fig=fig, func=update, frames = 40, interval = 30 )
-
-# plt.savefig('Sod_Rusanov')
 
 plt.show()
