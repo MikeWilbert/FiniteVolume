@@ -34,7 +34,7 @@ def primititives2conserved(n, ux, uy, p):
 
   global gamma
 
-  out = np.zeros( (4, n.shape[0], n.shape[1]) )
+  out = np.zeros( ( (4,) + n.shape) )
   
   out[0,:,:] = n
   out[1,:,:] = n * ux
@@ -62,33 +62,41 @@ def init():
   uy = np.zeros_like(X)
   p  = np.zeros_like(X)
   
-  # 2D Riemann problem (Case 3 in https://doi.org/10.1137/S1064827502402120)
+  # Kelvin-Helmholtz instability (https://doi.org/10.1016/j.compfluid.2015.04.026)
+  # BRAUCHE Interpolation! -> KT!!
+  # sigma = 0.001
+  # n += 1.
+  # ux+= 0.5
+  # uy+= 0.1*np.sin(2. * 2.*np.pi * X/L)
+  # p += 2.5
   
+  # n [ np.abs(Y) < 0.25*L ] +=  1
+  # ux[ np.abs(Y) < 0.25*L ] += -1
+  
+  #2D Riemann problem (Case 3 in https://doi.org/10.1137/S1064827502402120)
   # left lower
-  n [ ( X < 0.5*L ) & ( Y < 0.5*L ) ] += 0.138
-  ux[ ( X < 0.5*L ) & ( Y < 0.5*L ) ] += 1.206
-  uy[ ( X < 0.5*L ) & ( Y < 0.5*L ) ] += 1.206
-  p [ ( X < 0.5*L ) & ( Y < 0.5*L ) ] += 0.029
+  n [ ( X < 0. ) & ( Y < 0. ) ] += 0.138
+  ux[ ( X < 0. ) & ( Y < 0. ) ] += 1.206
+  uy[ ( X < 0. ) & ( Y < 0. ) ] += 1.206
+  p [ ( X < 0. ) & ( Y < 0. ) ] += 0.029
   
   # left upper
-  n [ ( X < 0.5*L ) & ( Y >= 0.5*L ) ] += 0.5323
-  ux[ ( X < 0.5*L ) & ( Y >= 0.5*L ) ] += 1.206
-  uy[ ( X < 0.5*L ) & ( Y >= 0.5*L ) ] += 0.0
-  p [ ( X < 0.5*L ) & ( Y >= 0.5*L ) ] += 0.3
+  n [ ( X < 0. ) & ( Y >= 0. ) ] += 0.5323
+  ux[ ( X < 0. ) & ( Y >= 0. ) ] += 1.206
+  uy[ ( X < 0. ) & ( Y >= 0. ) ] += 0.0
+  p [ ( X < 0. ) & ( Y >= 0. ) ] += 0.3
   
   # right lower
-  n [ ( X >= 0.5*L ) & ( Y < 0.5*L ) ] += 0.5323
-  ux[ ( X >= 0.5*L ) & ( Y < 0.5*L ) ] += 0.0
-  uy[ ( X >= 0.5*L ) & ( Y < 0.5*L ) ] += 1.206
-  p [ ( X >= 0.5*L ) & ( Y < 0.5*L ) ] += 0.3
+  n [ ( X >= 0. ) & ( Y < 0. ) ] += 0.5323
+  ux[ ( X >= 0. ) & ( Y < 0. ) ] += 0.0
+  uy[ ( X >= 0. ) & ( Y < 0. ) ] += 1.206
+  p [ ( X >= 0. ) & ( Y < 0. ) ] += 0.3
   
   # right upper
-  n [ ( X >= 0.5*L ) & ( Y >= 0.5*L ) ] += 1.5
-  ux[ ( X >= 0.5*L ) & ( Y >= 0.5*L ) ] += 0.0
-  uy[ ( X >= 0.5*L ) & ( Y >= 0.5*L ) ] += 0.0
-  p [ ( X >= 0.5*L ) & ( Y >= 0.5*L ) ] += 1.5
-  
-  # ux *= 0.
+  n [ ( X >= 0. ) & ( Y >= 0. ) ] += 1.5
+  ux[ ( X >= 0. ) & ( Y >= 0. ) ] += 0.0
+  uy[ ( X >= 0. ) & ( Y >= 0. ) ] += 0.0
+  p [ ( X >= 0. ) & ( Y >= 0. ) ] += 1.5
   
   Q = primititives2conserved(n,ux,uy,p)
   
@@ -96,8 +104,8 @@ def init():
   
 def flux(n,ux,uy,p,E):
   
-  Fx = np.zeros( (4, n.shape[0], n.shape[1] ) )
-  Fy = np.zeros( (4, n.shape[0], n.shape[1] ) )
+  Fx = np.zeros( ( (4,) + n.shape ) )
+  Fy = np.zeros( ( (4,) + n.shape ) )
   
   Fx[0,:,:] = ux * n
   Fx[1,:,:] = ux * n*ux + p
@@ -111,13 +119,25 @@ def flux(n,ux,uy,p,E):
   
   return Fx, Fy
 
+def reconstruct(A):
+  
+  global dx
+                                                                 
+  A_rec = np.zeros( ( (2, 2) + A.shape ) ) # dim = direction x side x dim(A)
+                                           # dir: 0:x , 1:y | side: 0:L , 1:R
+                                          
+  A_rec[ 0,0,:,:,: ] = A[:,1:-1,1:-1]
+  
+  return
+
 def get_RHS(A):
   
-  global Q
   global  iCC,  iRC,  iLC,  iCL,  iCR
   global iiCC, iiRC, iiLC, iiCL, iiCR
   global dt, dx
   
+  A_rec = reconstruct(A)
+     
   n, ux, uy, p = conserved2primitives( A )
   
   Fx, Fy = flux(n,ux,uy,p,Q[3,:,:])
@@ -144,6 +164,40 @@ def get_RHS(A):
   RHS = - ( Hx_R - Hx_L ) / dx - ( Hy_R - Hy_L ) / dx
   
   return RHS
+
+# def get_RHS(A):
+  
+#   global Q
+#   global  iCC,  iRC,  iLC,  iCL,  iCR
+#   global iiCC, iiRC, iiLC, iiCL, iiCR
+#   global dt, dx
+  
+#   n, ux, uy, p = conserved2primitives( A )
+  
+#   Fx, Fy = flux(n,ux,uy,p,Q[3,:,:])
+  
+#   # Rusanov flux
+#   c = np.sqrt( gamma * p / n )
+#   ax = np.abs(ux) + c
+#   ay = np.abs(uy) + c
+#   ax_L = np.maximum( ax[iCC] , ax[iLC] )
+#   ax_R = np.maximum( ax[iRC] , ax[iCC] )
+#   ay_L = np.maximum( ay[iCC] , ay[iCL] )
+#   ay_R = np.maximum( ay[iCR] , ay[iCC] )
+  
+#   Hx_L = 0.5 * ( Fx[iiCC] + Fx[iiLC] \
+#                  -  ( ax_L * ( Q[iiCC] - Q[iiLC] ) ) )
+#   Hx_R = 0.5 * ( Fx[iiRC] + Fx[iiCC] \
+#                  -  ( ax_R * ( Q[iiRC] - Q[iiCC] ) ) )
+  
+#   Hy_L = 0.5 * ( Fy[iiCC] + Fy[iiCL] \
+#                  -  ( ay_L * ( Q[iiCC] - Q[iiCL] ) ) )
+#   Hy_R = 0.5 * ( Fy[iiCR] + Fy[iiCC] \
+#                  -  ( ay_R * ( Q[iiCR] - Q[iiCC] ) ) )
+  
+#   RHS = - ( Hx_R - Hx_L ) / dx - ( Hy_R - Hy_L ) / dx
+  
+#   return RHS
 
 def get_dt():
   
@@ -186,7 +240,7 @@ def step():
 
 #parameters
 L = 1.
-N = 400
+N = 200
 cfl = 0.5
 Ng = 2
 
@@ -198,7 +252,7 @@ dt = cfl*dx
 gamma = 1.4
 
 # fields
-x = np.linspace(-Ng*dx,L+Ng*dx,N+2*Ng, endpoint=True)
+x = np.linspace(-Ng*dx,L+Ng*dx,N+2*Ng, endpoint=True)  -0.5 * L
 Y,X = np.meshgrid(x,x)
 
 Q = np.zeros( (4, N+2*Ng, N+2*Ng) )
@@ -224,15 +278,15 @@ iiRC = np.ix_( i_fields, i_R, i_C )
 # main loop
 init()
 
-while(t < 0.4):
-  step()
-  print(t)
+# while(t < 0.4):
+#   step()
+#   print(t)
 
 ''' GRAPHICS '''
 
 fig, ax = plt.subplots(1,1, figsize=(10, 10))
 n, ux, uy, p = conserved2primitives( Q )
-pcm = ax.pcolormesh( x[Ng:-Ng], x[Ng:-Ng], p[Ng:-Ng, Ng:-Ng], cmap='jet', vmin=0.0, vmax=1.71 )
+pcm = ax.pcolormesh( x[Ng:-Ng], x[Ng:-Ng], p[Ng:-Ng, Ng:-Ng].T, cmap='jet', vmin=0., vmax=1.71 )
 cnt = ax.contour(X[Ng:-Ng, Ng:-Ng],Y[Ng:-Ng, Ng:-Ng],n[Ng:-Ng, Ng:-Ng], 32, colors='k', vmin=0.16, vmax=1.71, linewidths=1.)
 fig.colorbar(pcm)
 ax.set_aspect('equal')
@@ -247,16 +301,18 @@ def update(i):
   global t, t_out
   global pcm, cnt
   
-  dt_out = 0.01
+  dt_out = 0.05
   
   while( t_out < dt_out ):
     step()
     t_out += dt
   t_out -= dt_out
   
+  # step()
+  
   n, ux, uy, p = conserved2primitives( Q )
   
-  pcm.set_array( p[Ng:-Ng, Ng:-Ng] ) 
+  pcm.set_array( p[Ng:-Ng, Ng:-Ng].T ) 
   for coll in cnt.collections:
     coll.remove()
   cnt = ax.contour(X[Ng:-Ng, Ng:-Ng],Y[Ng:-Ng, Ng:-Ng],n[Ng:-Ng, Ng:-Ng], 32, colors='k', vmin=0.16, vmax=1.71, linewidths=1.)
@@ -264,6 +320,6 @@ def update(i):
   title = "time = {:.2f} s".format(t)
   fig.suptitle(title, fontsize=16)
 
-# anim = animation.FuncAnimation( fig=fig, func=update, frames = 40, interval = 30 )
+anim = animation.FuncAnimation( fig=fig, func=update, frames = 40, interval = 30 )
 
 plt.show()

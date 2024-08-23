@@ -90,21 +90,18 @@ def step():
   
   n, u, p = conserved2primitives( Q )
   
-  # LxF
-  # a_L = dx/dt
-  # a_R = dx/dt
-  
   # Rusanov
   c = np.sqrt( gamma * p / n )
   a = np.abs(u) + c
-  a_L = np.maximum( a[Ng:-Ng] , a[Ng-1:-Ng-1] )
-  a_R = np.maximum( a[Ng+1:-Ng+1] , a[Ng:-Ng] )
   
   F = flux(Q)
   
-  Q[:,Ng:-Ng] += - 0.5 * dt/dx * ( F[:,Ng+1:-Ng+1] - F[:,Ng-1:-Ng-1] ) \
-                 + 0.5 * dt/dx * ( a_R * ( Q[:,Ng+1:-Ng+1] - Q[:,Ng:-Ng] ) - a_L * ( Q[:,Ng:-Ng] - Q[:,Ng-1:-Ng-1] ) ) 
-
+  a = np.maximum( a[Ng:-Ng+1] , a[Ng-1:-Ng] )
+  H = - 0.5 * (F[:,Ng:-Ng+1] + F[:,Ng-1:-Ng] - a * ( Q[:,Ng:-Ng+1] - Q[:,Ng-1:-Ng] ))
+  RHS = ( H[:,1:] - H[:,:-1] ) / dx
+  
+  Q[:,Ng:-Ng] += dt * RHS
+  
   boundary(Q)
 
   t += dt
@@ -112,8 +109,8 @@ def step():
 ''' MAIN '''
 
 L = 1.
-N = 2000
-cfl = 0.1
+N = 1000
+cfl = 0.25
 Ng = 2
 
 dx = L/(N-1)
