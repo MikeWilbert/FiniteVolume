@@ -11,24 +11,24 @@ def boundary(A):
   global Ng
   
   # periodic
-  # A[:,  Ng-1, :] = A[:, -Ng-1, :]
-  # A[:,  Ng-2, :] = A[:, -Ng-2, :]
-  # A[:, -Ng+0, :] = A[:,  Ng+0, :]
-  # A[:, -Ng+1, :] = A[:,  Ng+1, :]
-  # A[:, :,  Ng-1] = A[:, :, -Ng-1]
-  # A[:, :,  Ng-2] = A[:, :, -Ng-2]
-  # A[:, :, -Ng+0] = A[:, :,  Ng+0]
-  # A[:, :, -Ng+1] = A[:, :,  Ng+1]
+  A[:,  Ng-1, :] = A[:, -Ng-1, :]
+  A[:,  Ng-2, :] = A[:, -Ng-2, :]
+  A[:, -Ng+0, :] = A[:,  Ng+0, :]
+  A[:, -Ng+1, :] = A[:,  Ng+1, :]
+  A[:, :,  Ng-1] = A[:, :, -Ng-1]
+  A[:, :,  Ng-2] = A[:, :, -Ng-2]
+  A[:, :, -Ng+0] = A[:, :,  Ng+0]
+  A[:, :, -Ng+1] = A[:, :,  Ng+1]
   
   # outflow
-  A[:,  Ng-1, :] = A[:,  Ng-0, :]
-  A[:,  Ng-2, :] = A[:,  Ng-1, :]
-  A[:, -Ng+0, :] = A[:, -Ng-1, :]
-  A[:, -Ng+1, :] = A[:, -Ng-0, :]
-  A[:, :,  Ng-1] = A[:, :,  Ng-0]
-  A[:, :,  Ng-2] = A[:, :,  Ng-1]
-  A[:, :, -Ng+0] = A[:, :, -Ng-1]
-  A[:,  :,-Ng+1] = A[:, :, -Ng-0]
+  # A[:,  Ng-1, :] = A[:,  Ng-0, :]
+  # A[:,  Ng-2, :] = A[:,  Ng-1, :]
+  # A[:, -Ng+0, :] = A[:, -Ng-1, :]
+  # A[:, -Ng+1, :] = A[:, -Ng-0, :]
+  # A[:, :,  Ng-1] = A[:, :,  Ng-0]
+  # A[:, :,  Ng-2] = A[:, :,  Ng-1]
+  # A[:, :, -Ng+0] = A[:, :, -Ng-1]
+  # A[:,  :,-Ng+1] = A[:, :, -Ng-0]
   
 def primititives2conserved(n, ux, uy, p):
 
@@ -64,60 +64,65 @@ def init():
   
   # Kelvin-Helmholtz instability (https://doi.org/10.1016/j.compfluid.2015.04.026)
   # BRAUCHE Interpolation! -> KT!!
-  # sigma = 0.001
-  # n += 1.
-  # ux+= 0.5
-  # uy+= 0.1*np.sin(2. * 2.*np.pi * X/L)
-  # p += 2.5
+  sigma = 0.001
+  n += 1.
+  ux+= 0.5
+  uy+= 0.01*np.sin(2. * 2.*np.pi * X/L)
+  p += 2.5
   
-  # n [ np.abs(Y) < 0.25*L ] +=  1
-  # ux[ np.abs(Y) < 0.25*L ] += -1
+  n [ np.abs(Y) < 0.25*L ] +=  1
+  ux[ np.abs(Y) < 0.25*L ] += -1
   
   #2D Riemann problem (Case 3 in https://doi.org/10.1137/S1064827502402120)
   # left lower
-  n [ ( X < 0. ) & ( Y < 0. ) ] += 0.138
-  ux[ ( X < 0. ) & ( Y < 0. ) ] += 1.206
-  uy[ ( X < 0. ) & ( Y < 0. ) ] += 1.206
-  p [ ( X < 0. ) & ( Y < 0. ) ] += 0.029
+  # n [ ( X < 0. ) & ( Y < 0. ) ] += 0.138
+  # ux[ ( X < 0. ) & ( Y < 0. ) ] += 1.206
+  # uy[ ( X < 0. ) & ( Y < 0. ) ] += 1.206
+  # p [ ( X < 0. ) & ( Y < 0. ) ] += 0.029
   
-  # left upper
-  n [ ( X < 0. ) & ( Y >= 0. ) ] += 0.5323
-  ux[ ( X < 0. ) & ( Y >= 0. ) ] += 1.206
-  uy[ ( X < 0. ) & ( Y >= 0. ) ] += 0.0
-  p [ ( X < 0. ) & ( Y >= 0. ) ] += 0.3
+  # # left upper
+  # n [ ( X < 0. ) & ( Y >= 0. ) ] += 0.5323
+  # ux[ ( X < 0. ) & ( Y >= 0. ) ] += 1.206
+  # uy[ ( X < 0. ) & ( Y >= 0. ) ] += 0.0
+  # p [ ( X < 0. ) & ( Y >= 0. ) ] += 0.3
   
-  # right lower
-  n [ ( X >= 0. ) & ( Y < 0. ) ] += 0.5323
-  ux[ ( X >= 0. ) & ( Y < 0. ) ] += 0.0
-  uy[ ( X >= 0. ) & ( Y < 0. ) ] += 1.206
-  p [ ( X >= 0. ) & ( Y < 0. ) ] += 0.3
+  # # right lower
+  # n [ ( X >= 0. ) & ( Y < 0. ) ] += 0.5323
+  # ux[ ( X >= 0. ) & ( Y < 0. ) ] += 0.0
+  # uy[ ( X >= 0. ) & ( Y < 0. ) ] += 1.206
+  # p [ ( X >= 0. ) & ( Y < 0. ) ] += 0.3
   
-  # right upper
-  n [ ( X >= 0. ) & ( Y >= 0. ) ] += 1.5
-  ux[ ( X >= 0. ) & ( Y >= 0. ) ] += 0.0
-  uy[ ( X >= 0. ) & ( Y >= 0. ) ] += 0.0
-  p [ ( X >= 0. ) & ( Y >= 0. ) ] += 1.5
+  # # right upper
+  # n [ ( X >= 0. ) & ( Y >= 0. ) ] += 1.5
+  # ux[ ( X >= 0. ) & ( Y >= 0. ) ] += 0.0
+  # uy[ ( X >= 0. ) & ( Y >= 0. ) ] += 0.0
+  # p [ ( X >= 0. ) & ( Y >= 0. ) ] += 1.5
   
   Q = primititives2conserved(n,ux,uy,p)
   
   boundary(Q)
   
-def flux(n,ux,uy,p,E):
+def flux_x(n,ux,uy,p,E):
   
   Fx = np.zeros( ( (4,) + n.shape ) )
-  Fy = np.zeros( ( (4,) + n.shape ) )
   
   Fx[0,:,:] = ux * n
   Fx[1,:,:] = ux * n*ux + p
   Fx[2,:,:] = ux * n*uy
   Fx[3,:,:] = ux * (E + p)
   
+  return Fx
+
+def flux_y(n,ux,uy,p,E):
+  
+  Fy = np.zeros( ( (4,) + n.shape ) )
+  
   Fy[0,:,:] = uy * n
   Fy[1,:,:] = uy * n*ux
   Fy[2,:,:] = uy * n*uy + p 
   Fy[3,:,:] = uy * (E + p)
   
-  return Fx, Fy
+  return Fy
 
 def get_reconstruction(A):
   
@@ -170,10 +175,10 @@ def get_RHS(A):
   a_x = np.maximum( a_xp, a_xm)
   a_y = np.maximum( a_yp, a_ym)
   
-  Fx_xp, Fy_xp = flux(n_xp,ux_xp,uy_xp,p_xp,A_xp[3,:,:])
-  Fx_xm, Fy_xm = flux(n_xm,ux_xm,uy_xm,p_xm,A_xm[3,:,:])
-  Fx_yp, Fy_yp = flux(n_yp,ux_yp,uy_yp,p_yp,A_yp[3,:,:])
-  Fx_ym, Fy_ym = flux(n_ym,ux_ym,uy_ym,p_ym,A_ym[3,:,:])
+  Fx_xp = flux_x(n_xp,ux_xp,uy_xp,p_xp,A_xp[3,:,:])
+  Fx_xm = flux_x(n_xm,ux_xm,uy_xm,p_xm,A_xm[3,:,:])
+  Fy_yp = flux_y(n_yp,ux_yp,uy_yp,p_yp,A_yp[3,:,:])
+  Fy_ym = flux_y(n_ym,ux_ym,uy_ym,p_ym,A_ym[3,:,:])
   
   Hx = - 0.5 * (Fx_xm + Fx_xp - a_x * ( A_xm - A_xp ))
   Hy = - 0.5 * (Fy_ym + Fy_yp - a_y * ( A_ym - A_yp ))
@@ -181,41 +186,6 @@ def get_RHS(A):
   RHS = ( Hx[:,1:,:] - Hx[:,:-1,:] ) / dx + ( Hy[:,:,1:] - Hy[:,:,:-1] ) / dx
   
   return RHS
-
-# old version
-# def get_RHS(A):
-  
-#   global Q
-#   global  iCC,  iRC,  iLC,  iCL,  iCR
-#   global iiCC, iiRC, iiLC, iiCL, iiCR
-#   global dt, dx
-  
-#   n, ux, uy, p = conserved2primitives( A )
-  
-#   Fx, Fy = flux(n,ux,uy,p,Q[3,:,:])
-  
-#   # Rusanov flux
-#   c = np.sqrt( gamma * p / n )
-#   ax = np.abs(ux) + c
-#   ay = np.abs(uy) + c
-#   ax_L = np.maximum( ax[iCC] , ax[iLC] )
-#   ax_R = np.maximum( ax[iRC] , ax[iCC] )
-#   ay_L = np.maximum( ay[iCC] , ay[iCL] )
-#   ay_R = np.maximum( ay[iCR] , ay[iCC] )
-  
-#   Hx_L = 0.5 * ( Fx[iiCC] + Fx[iiLC] \
-#                  -  ( ax_L * ( Q[iiCC] - Q[iiLC] ) ) )
-#   Hx_R = 0.5 * ( Fx[iiRC] + Fx[iiCC] \
-#                  -  ( ax_R * ( Q[iiRC] - Q[iiCC] ) ) )
-  
-#   Hy_L = 0.5 * ( Fy[iiCC] + Fy[iiCL] \
-#                  -  ( ay_L * ( Q[iiCC] - Q[iiCL] ) ) )
-#   Hy_R = 0.5 * ( Fy[iiCR] + Fy[iiCC] \
-#                  -  ( ay_R * ( Q[iiCR] - Q[iiCC] ) ) )
-  
-#   RHS = - ( Hx_R - Hx_L ) / dx - ( Hy_R - Hy_L ) / dx
-  
-#   return RHS
 
 def get_dt():
   
@@ -238,19 +208,14 @@ def step():
   
   Q1 = np.zeros_like(Q)
   
-  # Euler
-  RHS0 = get_RHS(Q)
-  Q[:,Ng:-Ng,Ng:-Ng] = Q[:,Ng:-Ng,Ng:-Ng] +  dt * RHS0
-  boundary(Q)
-  
   # Heun
-  # RHS0 = get_RHS(Q)
-  # Q1[:,Ng:-Ng,Ng:-Ng] = Q[:,Ng:-Ng,Ng:-Ng] +  dt * RHS0
-  # boundary(Q1)
+  RHS0 = get_RHS(Q)
+  Q1[:,Ng:-Ng,Ng:-Ng] = Q[:,Ng:-Ng,Ng:-Ng] +  dt * RHS0
+  boundary(Q1)
   
-  # RHS1 = get_RHS(Q1)
-  # Q [:,Ng:-Ng,Ng:-Ng] = Q[:,Ng:-Ng,Ng:-Ng] +  dt * 0.5 * ( RHS0 + RHS1 )
-  # boundary(Q)
+  RHS1 = get_RHS(Q1)
+  Q [:,Ng:-Ng,Ng:-Ng] = Q[:,Ng:-Ng,Ng:-Ng] +  dt * 0.5 * ( RHS0 + RHS1 )
+  boundary(Q)
 
   t += dt
 
@@ -304,8 +269,9 @@ init()
 
 fig, ax = plt.subplots(1,1, figsize=(10, 10))
 n, ux, uy, p = conserved2primitives( Q )
-pcm = ax.pcolormesh( x[Ng:-Ng], x[Ng:-Ng], p[Ng:-Ng, Ng:-Ng].T, cmap='jet', vmin=0., vmax=1.71 )
-cnt = ax.contour(X[Ng:-Ng, Ng:-Ng],Y[Ng:-Ng, Ng:-Ng],n[Ng:-Ng, Ng:-Ng], 32, colors='k', vmin=0.16, vmax=1.71, linewidths=1.)
+# pcm = ax.pcolormesh( x[Ng:-Ng], x[Ng:-Ng], p[Ng:-Ng, Ng:-Ng].T, cmap='jet', vmin=0., vmax=1.71 )
+pcm = ax.pcolormesh( x[Ng:-Ng], x[Ng:-Ng], n[Ng:-Ng, Ng:-Ng].T, cmap='jet', vmin=1., vmax=2. )
+# cnt = ax.contour(X[Ng:-Ng, Ng:-Ng],Y[Ng:-Ng, Ng:-Ng],n[Ng:-Ng, Ng:-Ng], 32, colors='k', vmin=0.16, vmax=1.71, linewidths=1.)
 fig.colorbar(pcm)
 ax.set_aspect('equal')
 title = "time = {:.2f} s".format(t)
@@ -319,7 +285,7 @@ def update(i):
   global t, t_out
   global pcm, cnt
   
-  dt_out = 0.05
+  dt_out = 0.1
   
   while( t_out < dt_out ):
     step()
@@ -330,10 +296,10 @@ def update(i):
   
   n, ux, uy, p = conserved2primitives( Q )
   
-  pcm.set_array( p[Ng:-Ng, Ng:-Ng].T ) 
-  for coll in cnt.collections:
-    coll.remove()
-  cnt = ax.contour(X[Ng:-Ng, Ng:-Ng],Y[Ng:-Ng, Ng:-Ng],n[Ng:-Ng, Ng:-Ng], 32, colors='k', vmin=0.16, vmax=1.71, linewidths=1.)
+  pcm.set_array( n[Ng:-Ng, Ng:-Ng].T ) 
+  # for coll in cnt.collections:
+  #   coll.remove()
+  # cnt = ax.contour(X[Ng:-Ng, Ng:-Ng],Y[Ng:-Ng, Ng:-Ng],n[Ng:-Ng, Ng:-Ng], 32, colors='k', vmin=0.16, vmax=1.71, linewidths=1.)
   
   title = "time = {:.2f} s".format(t)
   fig.suptitle(title, fontsize=16)
