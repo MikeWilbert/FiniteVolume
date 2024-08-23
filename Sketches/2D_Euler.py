@@ -119,16 +119,30 @@ def flux(n,ux,uy,p,E):
   
   return Fx, Fy
 
-def reconstruct(A):
+def get_reconstruction(A):
   
-  global dx
-                                                                 
-  A_rec = np.zeros( ( (2, 2) + A.shape ) ) # dim = direction x side x dim(A)
-                                           # dir: 0:x , 1:y | side: 0:L , 1:R
-                                          
-  A_rec[ 0,0,:,:,: ] = A[:,1:-1,1:-1]
+  Ax_l = A[:,Ng-2:-Ng  , Ng:-Ng]
+  Ax_c = A[:,Ng-1:-Ng+1, Ng:-Ng]
+  Ax_r = A[:,Ng  :     , Ng:-Ng]
+  Ay_l = A[:,Ng:-Ng, Ng-2:-Ng  ]
+  Ay_c = A[:,Ng:-Ng, Ng-1:-Ng+1]
+  Ay_r = A[:,Ng:-Ng, Ng  :     ]
   
-  return
+  sigma_xl = ( Ax_c - Ax_l ) / dx
+  sigma_xr = ( Ax_r - Ax_c ) / dx
+  sigma_yl = ( Ay_c - Ay_l ) / dx
+  sigma_yr = ( Ay_r - Ay_c ) / dx
+  
+  # van leer  
+  sigma_x = sigma_xr * sigma_xl * (sigma_xr + sigma_xl) / ( sigma_xr**2 + sigma_xl**2 + 1.e-12)
+  sigma_y = sigma_yr * sigma_yl * (sigma_yr + sigma_yl) / ( sigma_yr**2 + sigma_yl**2 + 1.e-12)
+  
+  Ax_p = A[:,Ng-1:-Ng, Ng:-Ng] + 0.5 * dx * sigma_x[:,:-1,:]
+  Ax_m = A[:,Ng:-Ng+1, Ng:-Ng] - 0.5 * dx * sigma_x[:, 1:,:]
+  Ay_p = A[:,Ng:-Ng, Ng-1:-Ng] + 0.5 * dx * sigma_y[:,:,:-1]
+  Ay_m = A[:,Ng:-Ng, Ng:-Ng+1] - 0.5 * dx * sigma_y[:,:, 1:]
+  
+  return Ax_p, Ax_m, Ay_p, Ay_m
 
 def get_RHS(A):
   
@@ -136,35 +150,39 @@ def get_RHS(A):
   global iiCC, iiRC, iiLC, iiCL, iiCR
   global dt, dx
   
-  A_rec = reconstruct(A)
+  A_xp, A_xm, A_yp, A_ym = get_reconstruction(A)
      
-  n, ux, uy, p = conserved2primitives( A )
+  n_xp, ux_xp, uy_xp, p_xp = conserved2primitives( A_xp )
+  n_xm, ux_xm, uy_xm, p_xm = conserved2primitives( A_xm )
+  n_yp, ux_yp, uy_yp, p_yp = conserved2primitives( A_yp )
+  n_ym, ux_ym, uy_ym, p_ym = conserved2primitives( A_ym )
   
-  Fx, Fy = flux(n,ux,uy,p,Q[3,:,:])
+  c_xp = np.sqrt( np.fmax( gamma * p_xp / n_xp, 0. ) )
+  c_xm = np.sqrt( np.fmax( gamma * p_xm / n_xm, 0. ) )
+  c_yp = np.sqrt( np.fmax( gamma * p_yp / n_yp, 0. ) )
+  c_ym = np.sqrt( np.fmax( gamma * p_ym / n_ym, 0. ) )
   
-  # Rusanov flux
-  c = np.sqrt( gamma * p / n )
-  ax = np.abs(ux) + c
-  ay = np.abs(uy) + c
-  ax_L = np.maximum( ax[iCC] , ax[iLC] )
-  ax_R = np.maximum( ax[iRC] , ax[iCC] )
-  ay_L = np.maximum( ay[iCC] , ay[iCL] )
-  ay_R = np.maximum( ay[iCR] , ay[iCC] )
+  a_xp = np.abs(ux_xp) + c_xp
+  a_xm = np.abs(ux_xm) + c_xm
+  a_yp = np.abs(uy_yp) + c_yp
+  a_ym = np.abs(uy_ym) + c_ym
   
-  Hx_L = 0.5 * ( Fx[iiCC] + Fx[iiLC] \
-                 -  ( ax_L * ( Q[iiCC] - Q[iiLC] ) ) )
-  Hx_R = 0.5 * ( Fx[iiRC] + Fx[iiCC] \
-                 -  ( ax_R * ( Q[iiRC] - Q[iiCC] ) ) )
+  a_x = np.maximum( a_xp, a_xm)
+  a_y = np.maximum( a_yp, a_ym)
   
-  Hy_L = 0.5 * ( Fy[iiCC] + Fy[iiCL] \
-                 -  ( ay_L * ( Q[iiCC] - Q[iiCL] ) ) )
-  Hy_R = 0.5 * ( Fy[iiCR] + Fy[iiCC] \
-                 -  ( ay_R * ( Q[iiCR] - Q[iiCC] ) ) )
+  Fx_xp, Fy_xp = flux(n_xp,ux_xp,uy_xp,p_xp,A_xp[3,:,:])
+  Fx_xm, Fy_xm = flux(n_xm,ux_xm,uy_xm,p_xm,A_xm[3,:,:])
+  Fx_yp, Fy_yp = flux(n_yp,ux_yp,uy_yp,p_yp,A_yp[3,:,:])
+  Fx_ym, Fy_ym = flux(n_ym,ux_ym,uy_ym,p_ym,A_ym[3,:,:])
   
-  RHS = - ( Hx_R - Hx_L ) / dx - ( Hy_R - Hy_L ) / dx
+  Hx = - 0.5 * (Fx_xm + Fx_xp - a_x * ( A_xm - A_xp ))
+  Hy = - 0.5 * (Fy_ym + Fy_yp - a_y * ( A_ym - A_yp ))
+  
+  RHS = ( Hx[:,1:,:] - Hx[:,:-1,:] ) / dx + ( Hy[:,:,1:] - Hy[:,:,:-1] ) / dx
   
   return RHS
 
+# old version
 # def get_RHS(A):
   
 #   global Q
